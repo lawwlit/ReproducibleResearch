@@ -1,0 +1,123 @@
+---------
+title : "Reproducible Research: Peer graded assignment""
+author: "Lalit Ojha"
+date  : "January 19, 2018"
+---------
+```{r setup, include=FALSE}
+chooseCRANmirror(graphics=FALSE, ind=1)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+__________________________________________________
+
+Code for reading the dataset into R
+
+```{r echo=TRUE}
+activity.csv<-read.csv("activity.csv",sep=",") #reading data into R
+activitydata<-subset(activity.csv, is.na(activity.csv$steps)==F) #reading data without NA values
+```
+
+Code for Calculating steps each day
+
+```{r echo=TRUE}
+
+totalstepsperday <- aggregate(steps ~ date, activitydata, sum)
+```
+
+
+Histogram of the total number of steps taken each day
+
+```{r echo=TRUE}
+hist(totalstepsperday$steps, main="Number of steps", xlab="Total no. of steps taken each day", ylab="No. of Days", col="grey")
+```
+
+Mean and median of steps taken each day
+
+```{r echo=TRUE}
+meansteps<-mean(totalstepsperday$steps)
+mediansteps<-median(totalstepsperday$steps)
+```
+
+Time-series plot of the average number of steps taken by interval
+
+```{r echo=TRUE}
+avg <- aggregate(steps ~ interval, activitydata, mean)
+plot(avg$interval, avg$steps, type='l', col='grey', main="Average number of steps by Interval", xlab="Time Intervals", ylab="Average number of steps")
+
+```
+
+
+The 5-Minute interval that, on average, contains the maximum number of steps:
+
+```{r echo=TRUE}
+intervalmax <- which.max(avg$steps)
+print (paste("The interval with the highest avg steps is ", avg[intervalmax, ]$interval, " and the no of steps for that interval is ", round(avg[intervalmax, ]$steps, digits = 1)))
+
+```
+
+
+Calculating total rows containing missing values in original data
+
+```{r echo=TRUE}
+
+sum(is.na(activity.csv))
+
+```
+
+Data-Imputation:
+Strategy: Using predictive mean matching(pmm)
+
+```{r echo=TRUE}
+install.packages(" mice")
+library(mice)
+md.pattern(activity.csv)
+imputeactivity<-mice(activity.csv, m=5, maxit=5, method='pmm', seed=500) #imputing 5 datasets using pmm 
+summary(imputeactivity)
+mice(data = activity.csv, m = 5, method = "pmm", maxit = 5, seed = 500) #multiply ijmputed dataset
+imputeactivity$imp$steps #checking imputed data
+completeactivity <- complete(imputeactivity,2) #creating a complete dataset using second imputed dataset
+
+```
+
+
+Histogram of the total number of steps taken each day after missing values are imputed
+
+```{r echo=TRUE}
+totalstepsimputed <- aggregate(steps ~ date, completeactivity, sum)
+hist(totalstepsimputed$steps, main="Total Number of steps (imputed)", xlab="Total no. of steps taken each day", ylab="No. of Days", col="grey")
+```
+
+
+Mean and Median steps per day in imputed data
+
+```{r echo=TRUE}
+
+mean(totalstepsimputed$steps)
+mean(totalstepsperday$steps)
+
+median(totalstepsimputed$steps)
+median(totalstepsperday$steps)
+
+
+```
+
+Dividing the imputed data into weekdays and weekends
+```{r echo=TRUE}
+completeactivity$weekdays <- weekdays(as.Date(completeactivity$date))
+completeactivity$weekdays <- ifelse(completeactivity$weekdays %in% c("Saturday", "Sunday"),"weekend", "weekday")
+
+```
+
+Calculating average steps of each interval
+```{r echo=TRUE}
+average<-aggregate(steps~interval+weekdays, completeactivity, mean)
+```
+
+Creating the plot
+```{r echo=TRUE}
+xyplot(steps ~ interval | weekdays, data = average, layout = c(1, 2), type="l", xlab = "Interval", ylab = "Number of steps", col='grey')
+
+```
+
+
